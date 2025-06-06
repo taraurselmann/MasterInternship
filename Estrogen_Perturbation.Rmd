@@ -51,6 +51,7 @@ library(ggpmisc)
 DEGs_blastoid_blastocyst <- readxl::read_excel("data/DEG_ALL_write.xlsx")
 up_blastoid <- DEGs_blastoid_blastocyst$Blastoid
 up_blastocyst <- DEGs_blastoid_blastocyst$Blastocyst
+VIRMA_binding_RNAs <- read.csv("data/VIRMA_RNA_correct.csv")
 ```
 
 ### Directory
@@ -130,48 +131,6 @@ filtered_counts <- filtered_counts[rowSums(filtered_counts >=10) >= 2, ]
 filtered_counts[] <- lapply(filtered_counts, as.numeric)
 
 
-
-
-
-counts_gs <- data.rc
-counts_gs <- rownames_to_column(counts_gs, var = "gene_id")
-counts_gs$gene_id <- sub(".*_", "", counts_gs$gene_id)
-filtered_counts_gs <- counts_gs
-filtered_counts_gs <- filtered_counts_gs[!duplicated(filtered_counts_gs$gene_id), ]
-rownames(filtered_counts_gs) <- NULL
-filtered_counts_gs <- column_to_rownames(filtered_counts_gs, var = "gene_id")
-filtered_counts_gs <- round(filtered_counts_gs, digits = 0)
-filtered_counts_gs <- filtered_counts_gs[rowSums(filtered_counts_gs >=10) >= 4, ]
-
-
-
-# Calculate library sizes (total counts per sample)
-lib_sizes <- colSums(counts_gs[,2:19])
-
-# CPM calculation
-cpm <- as.data.frame(t(t(counts_gs[,2:19]) / lib_sizes) * 1e6)
-#cpm <- as.data.frame(cpm(counts[,2:19], log = TRUE, prior.count = 1))
-cpm$gene_id <- counts_gs$gene_id
-
-#pm <- cpm[, !names(cpm) %in% "gene_id"] # Remove ensembl IDs from data frame
-cpm <- na.omit(cpm) #Remove the genes without official GeneID
-cpm <- cpm[!duplicated(cpm$gene_id), ]
-rownames(cpm) <- NULL
-cpm <- cpm[!duplicated(cpm$gene_id), ]
-cpm <- column_to_rownames(cpm, var = "gene_id")
-cpm <- cpm[rowSums(cpm >=5) >= 4, ]
-#filtered_counts <- filtered_counts[rowSums(filtered_counts > 5) == ncol(filtered_counts), ]
-cpm[] <- lapply(cpm, as.numeric)
-
-
-
-
-#column_sums <- colSums(counts[,2:19])
-column_sums2 <- colSums(filtered_counts[])
-```
-
-```{r}
-data.rc.filt
 ```
 
 ```{r}
@@ -279,7 +238,7 @@ res_df <- as.data.frame(res)
 res_df$gene <- rownames(res_df)
 res_df$significant <- ifelse(res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 0.5, "yes", "no")
 res_df$VIRMA <- ifelse(rownames(res_df) %in% VIRMA_binding_RNAs$x, "yes", "no")
-res_df$downregulated_blastoid <- ifelse(rownames(res_df) %in% up_blastocyst & rownames(res_df) %in% VIRMA_targets$x, "yes", "no")
+res_df$downregulated_blastoid <- ifelse(rownames(res_df) %in% up_blastocyst & rownames(res_df) %in% VIRMA_binding_RNAs$x, "yes", "no")
 res_df$Estrogen <- ifelse(rownames(res_df) %in% progeny_model_estrogen_signif_pos$gene, "yes", "no")
 res_df["VIRMA", "VIRMA"] <- "VIRMA"
 res_df <- res_df[order(res_df$VIRMA), ]
@@ -589,7 +548,7 @@ res <- res[order(res$padj), ]
 res_df <- as.data.frame(res)
 res_df$gene <- rownames(res_df)
 res_df$significant <- ifelse(res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 0.5, "yes", "no")
-res_df$VIRMA <- ifelse(rownames(res_df) %in% VIRMA_targets$x, "yes", "no")
+res_df$VIRMA <- ifelse(rownames(res_df) %in% VIRMA_binding_RNAs$x, "yes", "no")
 res_df <- res_df[order(res_df$VIRMA), ]
 res_df_significant_tamoxifen_control <- res_df[res_df$significant == "yes",]
 res_df_tamoxifen_control <- res_df
@@ -624,7 +583,7 @@ res <- res[order(res$padj), ]
 res_df <- as.data.frame(res)
 res_df$gene <- rownames(res_df)
 res_df$significant <- ifelse(res_df$padj < 0.05 & abs(res_df$log2FoldChange) > 0.5, "yes", "no")
-res_df$VIRMA <- ifelse(rownames(res_df) %in% VIRMA_targets$x, "yes", "no")
+res_df$VIRMA <- ifelse(rownames(res_df) %in% VIRMA_binding_RNAs$x, "yes", "no")
 res_df <- res_df[order(res_df$VIRMA), ]
 res_df_significant_tamoxifen_control <- res_df[res_df$significant == "yes",]
 
@@ -636,9 +595,6 @@ ggplot(res_df, aes(x = log2FoldChange, y = -log10(padj))) +
   geom_vline(xintercept = c(0.5, -0.5), col = "grey")+
   geom_hline(yintercept = c(-log10(0.05)),  col = "grey")
   labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 adjusted p-value")
-```
-
-```         
 ```
 
 # TPM
@@ -695,13 +651,6 @@ colnames(tpm_data_DEG) <- condition
 tpm_data_DEG_plus <- tpm_data_DEG[]
 pheatmap(tpm_data_DEG, scale = "row", fontsize_col = 9, fontsize_row = 8)
 
-```
-
-```{r}
-GO_stability <- read_csv("data/mRNA_stability_GO_term.csv", col_names = F)
-GO_stability <- GO_stability$X2
-tpm_DEG_stability <- tpm_data_DEG[rownames(tpm_data_DEG) %in% GO_stability,]
-pheatmap(tpm_DEG_stability, scale = "row", fontsize_col =10, fontsize_row = 6, cluster_cols = F)
 ```
 
 ```{r}
@@ -918,7 +867,7 @@ ggplot(progeny_df_long, aes(x= Samples, y = Pathway_scores))+
   facet_wrap(~Pathway)
 
 progeny_df_hm <- progeny_df
-rownames(progeny_df_hm, d) <- factor(c("Estradiol 40 nM", "Estradiol 40 nM", "Estradiol 80 nM", "Estradiol 80 nM", "Tamoxifen 40 nM", "Tamoxifen 40 nM", "Tamoxifen 80 nM", "Tamoxifen 80 nM"))
+#rownames(progeny_df_hm ) <- factor(c("Estradiol 40 nM", "Estradiol 40 nM", "Estradiol 80 nM", "Estradiol 80 nM", "Tamoxifen 40 nM", "Tamoxifen 40 nM", "Tamoxifen 80 nM", "Tamoxifen 80 nM"))
 progeny_hm <- pheatmap(t(progeny_df_hm), cluster_cols = F)
 
 
@@ -949,119 +898,7 @@ progeny_df_avg <- as.data.frame(progeny_df) %>%
 pheatmap(t(progeny_df_avg), cluster_cols = FALSE)
 ```
 
-# VIRMA
-
-```{r}
-VIRMA_targets <- read_csv("data/VIRMA_RNA_correct.csv", col_names = T)
-VIRMA_binding_RNAs <- as.data.frame(read_csv("data/VIRMA_RNA_correct.csv", col_names = T))
-VIRMA_hm <- cpm[(VIRMA_targets$x),]
-VIRMA_hm <- na.omit(VIRMA_hm)
-
-
-VIRMA_hm
-sum_VIRMA_control <- as.data.frame(rowSums(VIRMA_hm[, c(1:2)]))
-sum_VIRMA_control <- rownames_to_column(sum_VIRMA_control, var = "gene")
-sum_VIRMA_control <- sum_VIRMA_control[apply(sum_VIRMA_control, 1, function(row) all(row >= 1)), ]
-
-
-sum_VIRMA_Estradiol <- as.data.frame(rowSums(VIRMA_hm[, c(3:10)]))
-sum_VIRMA_Estradiol <- rownames_to_column(sum_VIRMA_Estradiol, var = "gene")
-sum_VIRMA_Estradiol <- sum_VIRMA_Estradiol[apply(sum_VIRMA_Estradiol, 1, function(row) all(row >= 1)), ]
-
-sum_VIRMA_tamoxifen <- as.data.frame(rowSums(VIRMA_hm[, c(11:18)]))
-sum_VIRMA_tamoxifen <- rownames_to_column(sum_VIRMA_tamoxifen, var = "gene")
-sum_VIRMA_tamoxifen <- sum_VIRMA_tamoxifen[apply(sum_VIRMA_tamoxifen, 1, function(row) all(row >= 1)), ]
-
-sum_VIRMA <- inner_join(sum_VIRMA_control, sum_VIRMA_Estradiol)
-sum_VIRMA <- inner_join(sum_VIRMA, sum_VIRMA_tamoxifen)
-
-sum_VIRMA$Variable <- sum_VIRMA$`rowSums(VIRMA_hm[, c(3:10)])`/sum_VIRMA$`rowSums(VIRMA_hm[, c(11:18)])`
-sum_VIRMA <- sum_VIRMA[order(sum_VIRMA$Variable, decreasing = TRUE),]
-top_100_plus <- head(sum_VIRMA, 100)
-top_100_min <- tail(sum_VIRMA, 100)
-top_100_all <- rbind(top_100_plus, top_100_min)
-VIRMA_top100_hm <- VIRMA_hm[(top_100_all$gene),]
-
-
-color.divisions <- 100
-#color <- makeColorRampPalette(c("navy", "white","white", "red"), 
-#                             cutoff.distance / max(distmat), color.divisions)
-
-heatmap_VIRMA_top100 <- pheatmap(VIRMA_hm)
-```
-
-```{r}
-VIRMA_hm2 <- VIRMA_hm
-VIRMA_hm2 <- VIRMA_hm2[,c(1,2, 7, 8, 9, 10 , 15, 16)]
-VIRMA_hm2 <- VIRMA_hm2[apply(VIRMA_hm2, 1, function(row) all(row < 4000)), ]
-
-gene_vars <- rowVars(as.matrix(VIRMA_hm2))
-top_genes <- names(sort(gene_vars, decreasing = TRUE))[1:100]
-top_cpm <- VIRMA_hm2[top_genes, ]
-top_cpm <- na.omit(top_cpm)
-
-
-heatmap_high_VIRMA <- pheatmap(VIRMA_hm2, cluster_cols = T)
-
-```
-
-# Seurat
-
-```{r}
-
-seurat_data <- CreateSeuratObject(counts = filtered_counts) 
-seurat_data <- NormalizeData(seurat_data)
-seurat_data <- FindVariableFeatures(object = seurat_data, nfeatures = 4000)
-seurat_data <- ScaleData(seurat_data)
-seurat_data <- RunPCA(seurat_data)
-seurat_data <- FindNeighbors(seurat_data)
-seurat_data <- FindClusters(seurat_data, resolution = 0.5, verbose=FALSE)
-seurat_data <- RunUMAP(seurat_data, dims = 1:20, n.components = 3L, min.dist = 0.5, verbose=FALSE)
-
-virma_in_seurat <- intersect(rownames(seurat_data), VIRMA_targets$x)
-
-seurat_data <- AddModuleScore(
- object = seurat_data,
- features = virma_in_seurat, #Select only RNAs present in Seurat object
- ctrl = 100,
- name = "VIRMA_features"
-)
-
-VlnPlot(seurat_data, features = "VIRMA_features1")
-VlnPlot(seurat_data, assay = "progeny", features = "Estradiol")
-
-#Use PROGENy workflow as described in their vignette. 
-seurat_data <- progeny(seurat_data, 
-                                       scale = F, 
-                                       organism = "Human", 
-                                       top = 100, 
-                                       return_assay = T)
-
-
-
-seurat_data <- Seurat::ScaleData(seurat_data, assay = "progeny") 
-seurat_data_progeny <- 
-    as.data.frame(t(GetAssayData(seurat_data, slot = "scale.data",
-        assay = "progeny")))
-
-
-
-#sample_names <- (c("Control1", "Control2", "Estradiol10.1", "Estradiol10.2", "Estradiol20.1", "Estradiol20.2", "Estradiol40.1", "Estradiol40.2", "Estradiol80.1", "Estradiol80.2", "Tamoxifen10.1", "Tamoxifen10.2", "Tamoxifen20.1", "Tamoxifen20.2", "Tamoxifen40.1", "Tamoxifen40.2", "Tamoxifen80.1", "Tamoxifen80.2"))
-#rownames(seurat_data_progeny) <- sample_names
-#progeny_df <- progeny_df[sample_names,]
-
-progeny_hm <- pheatmap(t(seurat_data_progeny), cluster_cols = F)
-```
-
-```{r}
-tpm_data_volcanoplot <- tpm_data[,c(7,8,9,10,15, 16)]
-group <- c(rep(c("Estradiol"), times = 4 ), 
-           rep(c("Tamoxifen"), times =2))
-DEG_plot_Estradiol <- DEG_analysis_VIRMA(tpm_data_volcanoplot, group =group, loglimit = 0.5, adj_p_value = 0.05, main = "Estradiol vs. Tamoxifen")
-DEG_plot_Estradiol
-```
-
-# Correlation
+# Correlation plots
 
 ## Seq2Science
 
@@ -1069,81 +906,6 @@ DEG_plot_Estradiol
 sample_names <- (c("Control1", "Control2", "Estradiol10.1", "Estradiol10.2", "Estradiol20.1", "Estradiol20.2", "Estradiol40.1", "Estradiol40.2", "Estradiol80.1", "Estradiol80.2", "Tamoxifen10.1", "Tamoxifen10.2","Tamoxifen20.1", "Tamoxifen20.2","Tamoxifen40.1", "Tamoxifen40.2", "Tamoxifen80.1", "Tamoxifen80.2"))
 filtered_counts_0 <- filtered_counts
 filtered_counts_0[filtered_counts_0 == "NaN"] <- 0
-
-for(i in unique(ref$condition)){
-  for(j in unique(ref[ref$condition == i,]$concentration)){
-    samples <- ref[ref$condition == i & ref$concentration == j, "sample"]
-    p1 <- ggplot(filtered_counts_0, aes(.data[[samples[1]]], .data[[samples[2]]])) + 
-      geom_point() +
-      theme_bw() + 
-      theme(panel.grid = element_blank()) +
-      labs(title = paste0(i, " (", j, " ng/ul)" ),
-           x = "Replicate 1 total", y = "Replicate 2 total") +
-      geom_text(label = paste0("Rho = ", as.character(round(cor(filtered_counts_0[,samples[1]], 
-                                           filtered_counts_0[,samples[2]]),3))),
-                x = 0.9, y = 0.9, color = "red", size = 5) 
-    
-  plot(p1)
-  }
-}
-```
-
-## GS
-
-```{r}
-filtered_counts_gs_0 <- filtered_counts_gs
-filtered_counts_gs_0[filtered_counts_gs_0 == "NaN"] <- 0
-
-for(i in unique(ref$condition)){
-  for(j in unique(ref[ref$condition == i,]$concentration)){
-    samples <- ref[ref$condition == i & ref$concentration == j, "sample"]
-    p1 <- ggplot(filtered_counts_gs_0, aes(.data[[samples[1]]], .data[[samples[2]]])) + 
-      geom_point() +
-      theme_bw() + 
-      theme(panel.grid = element_blank()) +
-      labs(title = paste0(i, " (", j, " ng/ul)" ),
-           x = "Replicate 1 total", y = "Replicate 2 total") +
-      geom_text(label = paste0("Rho = ", as.character(round(cor(filtered_counts_gs_0[,samples[1]], 
-                                           filtered_counts_gs_0[,samples[2]]),3))),
-                x = 0.9, y = 0.9, color = "red", size = 5) 
-    
-  plot(p1)
-  }
-}
-
-
-colnames(filtered_counts_gs_0) <- sample_names
-Cor_filtered_counts_gs_0 <- cor(filtered_counts_gs_0, use = "complete.obs", method = "spearman")
-colnames(Cor_filtered_counts_gs_0) <- sample_names
-
-col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-corrplot.mixed(cor(Cor_filtered_counts_gs_0),
- upper = "square",
- lower = "number",
- addgrid.col = "black",
- tl.col = "black")
-
-
-corrplot(Cor_filtered_counts_gs_0, method = "color", type = "upper", 
-         addCoef.col = "black", # Add correlation coefficients
-         tl.col = "black", tl.srt = 45, # Text label color and rotation
-         number.cex = 0.5, # Size of the correlation numbers
-         tl.cex = 0.5,
-         col = colorRampPalette(c("#BB4444", "white", "#77AADD"))(200)) # Color gradient
-
-
-#NTR
-
-Cor_filtered_counts_gs_0 <- cor(data.ntr.filt_0, use = "complete.obs", method = "spearman")
-colnames(Cor_filtered_counts_gs_0) <- sample_names
-
-
-corrplot(Cor_filtered_counts_gs_0, method = "color", type = "upper", 
-         addCoef.col = "black", # Add correlation coefficients
-         tl.col = "black", tl.srt = 45, # Text label color and rotation
-         number.cex = 0.5, # Size of the correlation numbers
-         tl.cex = 0.5,
-         col = colorRampPalette(c("#BB4444", "white", "#77AADD"))(200)) # Color gradient
 
 ```
 
@@ -1295,84 +1057,6 @@ ggplot(pattern_high, aes(x = log2FoldChange, fill = downregulated_blastoid)) +
   guides(fill = "none")+
   scale_y_continuous(expand = c(0, 0))+
   theme_classic()
-```
-
-```{r}
-# Assume your data frame is named 'df'
-# and has columns 'log2FoldChange' and 'VIRMA' ("yes" or "no")
-
-# Extract fold changes
-virma_fc <- pattern_high$log2FoldChange[pattern_high$VIRMA == "yes"]
-non_virma_fc_all <- pattern_high$log2FoldChange[pattern_high$VIRMA == "no"]
-
-# Set up parameters
-n_iterations <- 100
-sample_size <- length(virma_fc)  # Same size as VIRMA group
-p_values <- numeric(n_iterations)
-
-# Resampling and testing
-set.seed(123)  # for reproducibility
-for (i in 1:n_iterations) {
-  sampled_non_virma_fc <- sample(non_virma_fc_all, sample_size)
-  test_result <- wilcox.test(
-    virma_fc,
-    sampled_non_virma_fc,
-    alternative = "less"  # Test for downregulation
-  )
-  p_values[i] <- test_result$p.value
-}
-
-# Prepare data
-pval_df <- data.frame(log_p = -log10(p_values))
-
-# Plot
-ggplot(pval_df, aes(x = log_p)) +
-  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
-  geom_vline(xintercept = -log10(0.05), linetype = "dashed", color = "red") +
-  annotate("text", x = -log10(0.05), y = Inf, label = "p = 0.05",
-           vjust = -0.5, hjust = -0.1, angle = 90, color = "red") +
-  labs(title = "Histogram of -log10(p-values)",
-       x = expression(-log[10](p-value)),
-       y = "Count") +
-  theme_minimal()
-```
-
-```{r}
-
-# Extract fold changes
-virma_fc <- pattern_high$log2FoldChange[pattern_high$VIRMA == "yes"]
-non_virma_fc_all <- pattern_high$log2FoldChange[pattern_high$VIRMA == "no"]
-
-# Set up parameters
-n_iterations <- 100
-sample_size <- length(virma_fc)  # Same size as VIRMA group
-p_values <- numeric(n_iterations)
-
-# Resampling and testing
-set.seed(123)  # for reproducibility
-for (i in 1:n_iterations) {
-  sampled_non_virma_fc <- sample(non_virma_fc_all, sample_size)
-  test_result <- wilcox.test(
-    virma_fc,
-    sampled_non_virma_fc,
-    alternative = "less"  # Test for downregulation
-  )
-  p_values[i] <- test_result$p.value
-}
-
-# Prepare data
-pval_df <- data.frame(log_p = -log10(p_values))
-
-# Plot
-ggplot(pval_df, aes(x = log_p)) +
-  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
-  geom_vline(xintercept = -log10(0.05), linetype = "dashed", color = "red") +
-  annotate("text", x = -log10(0.05), y = Inf, label = "p = 0.05",
-           vjust = -0.5, hjust = -0.1, angle = 90, color = "red") +
-  labs(title = "Histogram of -log10(p-values)",
-       x = expression(-log[10](p-value)),
-       y = "Count") +
-  theme_minimal()
 ```
 
 ```{r}
